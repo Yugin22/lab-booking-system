@@ -45,7 +45,7 @@ type BookingRow = {
   created_at?: string | null;
   labs?: {
     name: string;
-  } | null;
+  }[] | null;
 };
 
 type LabRow = {
@@ -636,7 +636,7 @@ export default function AdminDashboardPage() {
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                       <div>
                         <h3 className="text-base font-semibold text-white">
-                          Laboratory: {booking.labs?.name || "Unknown Laboratory"}
+                          Laboratory: {booking.labs?.[0]?.name || "Unknown Laboratory"}
                         </h3>
                         <p className="mt-2 text-sm text-white/70">
                           {formatDate(booking.date)}{" "}
