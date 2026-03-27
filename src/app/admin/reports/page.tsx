@@ -181,16 +181,29 @@ export default function ReportsPage() {
     }
   };
 
+  const formatTime = (value?: string | null) => {
+    if (!value) return "—";
+  
+    const clean = value.slice(0, 5);
+    const [hourStr, minute] = clean.split(":");
+    const hour = Number(hourStr);
+  
+    if (Number.isNaN(hour)) return clean;
+  
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  
+    return `${hour12}:${minute} ${suffix}`;
+  };
+
   const allBookingViews: BookingView[] = useMemo(() => {
     return bookings.map((booking) => {
-      const hour = booking.start_time ? booking.start_time.slice(0, 2) : "";
-      const hourNumber = Number(hour);
       const peakHourLabel =
-        !Number.isNaN(hourNumber) && hour !== ""
-          ? `${hour.padStart(2, "0")}:00 - ${(hourNumber + 1)
-              .toString()
-              .padStart(2, "0")}:00`
-          : "Unknown";
+      booking.start_time && booking.end_time
+        ? `${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`
+        : booking.start_time
+        ? formatTime(booking.start_time)
+        : "Unknown";
 
       const labName =
         booking.lab_id != null
@@ -360,11 +373,6 @@ export default function ReportsPage() {
       month: "long",
       day: "numeric",
     });
-  };
-
-  const formatTime = (value?: string | null) => {
-    if (!value) return "—";
-    return value.slice(0, 5);
   };
 
   if (checkingAccess && loading) {
@@ -714,46 +722,51 @@ export default function ReportsPage() {
               {filteredBookings.map((booking) => (
                 <div
                   key={booking.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
                 >
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <h3 className="text-base font-semibold text-white">
-                          {booking.lab_name}
-                        </h3>
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getStatusBadge(
-                            booking.status
-                          )}`}
-                        >
-                          {booking.status || "Unknown"}
-                        </span>
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="text-base font-semibold text-white">
+                        {booking.lab_name}
+                      </h3>
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getStatusBadge(
+                          booking.status
+                        )}`}
+                      >
+                        {booking.status || "Unknown"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-x-12 gap-y-4 text-sm sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <p className="text-white/45">Date</p>
+                        <p className="font-medium text-white/85">{formatDate(booking.date)}</p>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-2 text-sm text-white/65 sm:grid-cols-2">
-                        <p>
-                          <span className="font-medium text-white/80">Date:</span>{" "}
-                          {formatDate(booking.date)}
-                        </p>
-                        <p>
-                          <span className="font-medium text-white/80">Time:</span>{" "}
+                      <div className="space-y-1">
+                        <p className="text-white/45">Time</p>
+                        <p className="font-medium text-white/85">
                           {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
                         </p>
-                        <p>
-                          <span className="font-medium text-white/80">Peak Hour Bucket:</span>{" "}
-                          {booking.peak_hour_label}
-                        </p>
-                        <p>
-                          <span className="font-medium text-white/80">Computer ID:</span>{" "}
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-white/45">Peak Hour Bucket</p>
+                        <p className="font-medium text-white/85">{booking.peak_hour_label}</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-white/45">Computer ID</p>
+                        <p className="break-words font-medium text-white/85">
                           {booking.computer_id || "N/A"}
                         </p>
                       </div>
-                    </div>
 
-                    <div className="text-sm text-white/45 xl:text-right">
-                      <p>Booking ID</p>
-                      <p className="mt-1 font-mono text-white/70">{booking.id}</p>
+                      <div className="space-y-1 sm:col-span-2">
+                        <p className="text-white/45">Booking ID</p>
+                        <p className="break-all font-mono text-white/75">{booking.id}</p>
+                      </div>
                     </div>
                   </div>
                 </div>

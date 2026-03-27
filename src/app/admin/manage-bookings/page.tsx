@@ -284,33 +284,37 @@ export default function ManageBookingsPage() {
     nextStatus: "approved" | "rejected" | "cancelled"
   ) => {
     if (updatingBookingId) return;
-
+  
     setUpdatingBookingId(bookingId);
     setError("");
     setSuccess("");
-
+  
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("bookings")
         .update({
           status: nextStatus,
         })
-        .eq("id", bookingId);
-
+        .eq("id", bookingId)
+        .select("id, status")
+        .single();
+  
       if (error) {
-        setError(error.message);
-        setUpdatingBookingId(null);
+        setError(`Failed to update booking: ${error.message}`);
         return;
       }
-
-      setBookings((prev) =>
-        prev.map((booking) =>
-          booking.id === bookingId ? { ...booking, status: nextStatus } : booking
-        )
-      );
-
+  
+      if (!data) {
+        setError("No booking row was updated. Check your Supabase RLS policies.");
+        return;
+      }
+  
       setSuccess(`Reservation ${nextStatus} successfully.`);
-    } catch {
+  
+      // Always re-fetch from database so UI matches actual DB state
+      await fetchPageData();
+    } catch (err) {
+      console.error("Update booking status error:", err);
       setError("Something went wrong while updating the booking.");
     } finally {
       setUpdatingBookingId(null);
@@ -331,7 +335,17 @@ export default function ManageBookingsPage() {
 
   const formatTime = (value?: string | null) => {
     if (!value) return "";
-    return value.slice(0, 5);
+  
+    const normalized = value.length === 5 ? `${value}:00` : value;
+    const date = new Date(`1970-01-01T${normalized}`);
+  
+    if (Number.isNaN(date.getTime())) return value;
+  
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
   const getStatusBadge = (status?: string | null) => {
@@ -637,7 +651,7 @@ export default function ManageBookingsPage() {
                   key={booking.id}
                   className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-3">
                         <h3 className="text-base font-semibold text-white">
@@ -676,16 +690,10 @@ export default function ManageBookingsPage() {
                           <span className="font-medium text-white/80">Course:</span>{" "}
                           {booking.user_course}
                         </p>
-                        <p>
-                          <span className="font-medium text-white/80">
-                            Computer ID:
-                          </span>{" "}
-                          {booking.computer_id || "N/A"}
-                        </p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:min-w-[320px]">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:min-w-[320px] lg:mt-1">
                       <ActionButton
                         label={
                           updatingBookingId === booking.id

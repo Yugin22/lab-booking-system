@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
@@ -50,74 +50,79 @@ export default function BookingPage() {
   const [labsMap, setLabsMap] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const isFetchingRef = useRef(false);
 
   const fetchBookings = async () => {
+    if (isFetchingRef.current) return;
+  
+    isFetchingRef.current = true;
+  
     try {
       setError("");
-
+  
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        setError(userError.message);
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+  
+      if (sessionError) {
+        setError(sessionError.message);
         setBookings([]);
         return;
       }
-
+  
+      const user = session?.user;
+  
       if (!user) {
         setError("You must be logged in to view your bookings.");
         setBookings([]);
         return;
       }
-
+  
       const [bookingsRes, labsRes] = await Promise.all([
         supabase
           .from("bookings")
-          .select(
-            `
-              id,
-              user_id,
-              date,
-              start_time,
-              end_time,
-              status,
-              computer_id,
-              lab_id,
-              purpose,
-              subject,
-              instructor,
-              created_at
-            `
-          )
+          .select(`
+            id,
+            user_id,
+            date,
+            start_time,
+            end_time,
+            status,
+            computer_id,
+            lab_id,
+            purpose,
+            subject,
+            instructor,
+            created_at
+          `)
           .eq("user_id", user.id)
           .order("date", { ascending: false })
           .order("start_time", { ascending: false }),
-      
-        supabase.from("labs").select("id, name").order("name", { ascending: true }),
+  
+        supabase
+          .from("labs")
+          .select("id, name")
+          .order("name", { ascending: true }),
       ]);
-      
+  
       if (bookingsRes.error) {
         setError(bookingsRes.error.message);
         setBookings([]);
         return;
       }
-      
+  
       if (labsRes.error) {
         setError(labsRes.error.message);
         setBookings([]);
         return;
       }
-      
+  
       const labRecord: Record<string, string> = {};
       ((labsRes.data || []) as LabRow[]).forEach((lab) => {
         labRecord[String(lab.id)] = lab.name;
       });
-      
-      console.log("Logged in user id:", user.id);
-      console.log("Bookings fetched:", bookingsRes.data);
-
+  
       setLabsMap(labRecord);
       setBookings((bookingsRes.data || []) as Booking[]);
     } catch (err) {
@@ -125,6 +130,7 @@ export default function BookingPage() {
       setError("Something went wrong while loading your bookings.");
       setBookings([]);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
       setRefreshing(false);
     }
@@ -135,6 +141,7 @@ export default function BookingPage() {
   }, []);
 
   const handleRefresh = async () => {
+    if (isFetchingRef.current) return;
     setRefreshing(true);
     await fetchBookings();
   };

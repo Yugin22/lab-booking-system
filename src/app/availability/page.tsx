@@ -66,6 +66,7 @@ export default function AvailabilityPage() {
       "18:00",
       "19:00",
       "20:00",
+      "21:00", // ✅ added (9 PM)
     ],
     []
   );
@@ -334,22 +335,22 @@ export default function AvailabilityPage() {
           ) : activeLabs.length === 0 ? (
             <EmptyState text="No active laboratories found." />
           ) : (
-              <div className="overflow-x-auto pb-3 [scrollbar-width:auto] [scrollbar-color:rgba(255,255,255,0.45)_rgba(255,255,255,0.10)] [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/40 [&::-webkit-scrollbar-thumb:hover]:bg-white/60">
-                <div className="min-w-[1400px]">
-                <div
-                  className="grid gap-2"
-                  style={{
-                    gridTemplateColumns: `220px repeat(${timeSlots.length}, minmax(80px, 1fr))`,
-                  }}
-                >
-                <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-semibold text-white backdrop-blur-xl">
+              <div className="overflow-x-auto pb-4 scroll-smooth [scrollbar-width:auto] [scrollbar-color:rgba(255,255,255,0.45)_rgba(255,255,255,0.10)] [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/40 [&::-webkit-scrollbar-thumb:hover]:bg-white/60">
+                <div className="min-w-[1600px]">
+                  <div
+                    className="grid gap-3"
+                    style={{
+                      gridTemplateColumns: `260px repeat(${timeSlots.length}, minmax(90px, 1fr))`,
+                    }}
+                  >
+                <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] px-3 py-4 text-center text-xs font-semibold text-cyan-200 shadow-inner">
                   Laboratory
                 </div>
 
                   {timeSlots.map((slot) => (
                     <div
                       key={slot}
-                      className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center text-sm font-semibold text-cyan-200"
+                      className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] px-3 py-4 text-center text-xs font-semibold text-cyan-200 shadow-inner"
                     >
                       {formatHour12(slot)}
                     </div>
@@ -385,13 +386,11 @@ function ScheduleRow({
 }) {
   return (
     <>
-      <div className="flex items-center rounded-2xl border border-white/10 bg-black/40 px-4 py-3 backdrop-blur-xl">
-        <div>
-          <p className="font-medium text-white">{lab.name}</p>
-          <p className="mt-1 text-xs text-white/45">
-            Slots: {lab.available_slots}
-          </p>
-        </div>
+      <div className="sticky left-0 z-20 flex flex-col justify-center rounded-2xl border border-white/10 bg-black/60 px-4 py-4 backdrop-blur-xl shadow-inner">
+        <p className="font-semibold text-white">{lab.name}</p>
+        <p className="mt-1 text-xs text-white/50">
+          Capacity: {lab.available_slots}
+        </p>
       </div>
 
       {timeSlots.map((slot) => {
@@ -403,7 +402,7 @@ function ScheduleRow({
           return (
             <div
               key={`${lab.id}-${slot}`}
-              className="rounded-2xl border border-red-400/15 bg-red-500/10 px-2 py-4 text-center text-xs font-medium text-red-200"
+              className="rounded-2xl border border-red-400/20 bg-gradient-to-br from-red-500/20 to-red-400/10 px-2 py-5 text-center text-xs font-semibold text-red-200"
               title={`Lab status: ${lab.status}`}
             >
               N/A
@@ -415,7 +414,7 @@ function ScheduleRow({
           return (
             <div
               key={`${lab.id}-${slot}`}
-              className="rounded-2xl border border-amber-400/15 bg-amber-500/10 px-2 py-4 text-center text-xs font-medium text-amber-200"
+              className="rounded-2xl border border-amber-400/20 bg-gradient-to-br from-amber-500/20 to-amber-400/10 px-2 py-5 text-center text-xs font-semibold text-amber-200 transition hover:scale-[1.03]"
               title={`${formatHour12(cell.booking?.start_time?.slice(0, 5) || "")} - ${formatHour12(cell.booking?.end_time?.slice(0, 5) || "")} (${cell.booking?.status})`}
             >
               Occupied
@@ -426,7 +425,7 @@ function ScheduleRow({
         return (
           <div
             key={`${lab.id}-${slot}`}
-            className="rounded-2xl border border-emerald-400/15 bg-emerald-500/10 px-2 py-4 text-center text-xs font-medium text-emerald-200"
+            className="rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/20 to-emerald-400/10 px-2 py-5 text-center text-xs font-semibold text-emerald-200 transition hover:scale-[1.03]"
             title="Free"
           >
             Free

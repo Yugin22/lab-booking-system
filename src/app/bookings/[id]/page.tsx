@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -17,6 +17,7 @@ import {
   Building2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import AnimatedContent from "@/components/AnimatedContent";
 
 const Aurora = dynamic(() => import("@/components/Aurora"), {
   ssr: false,
@@ -31,6 +32,7 @@ type BookingDetails = {
   status: "pending" | "approved" | "rejected" | "cancelled" | string;
   computer_id?: string | null;
   lab_id?: number | null;
+  lab_name?: string | null;
   purpose?: string | null;
   subject?: string | null;
   instructor?: string | null;
@@ -47,35 +49,43 @@ export default function BookingDetailsPage() {
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const isFetchingRef = useRef(false);
 
   const fetchBookingDetails = async () => {
+    if (isFetchingRef.current) return;
+  
+    isFetchingRef.current = true;
+  
     try {
+      setLoading(true);
       setError("");
       setSuccess("");
-
+  
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        setError(userError.message);
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+  
+      if (sessionError) {
+        setError(sessionError.message);
         setBooking(null);
         return;
       }
-
+  
+      const user = session?.user;
+  
       if (!user) {
         setError("You must be logged in to view this booking.");
         setBooking(null);
         return;
       }
-
+  
       if (!bookingId || typeof bookingId !== "string") {
         setError("Invalid booking ID.");
         setBooking(null);
         return;
       }
-
+  
       const { data, error } = await supabase
         .from("bookings")
         .select(`
@@ -95,19 +105,41 @@ export default function BookingDetailsPage() {
         .eq("id", bookingId)
         .eq("user_id", user.id)
         .single();
-
+  
       if (error) {
         setError("Booking not found or you do not have access to it.");
         setBooking(null);
         return;
       }
-
-      setBooking(data as BookingDetails);
+  
+      let resolvedLabName: string | null = null;
+  
+      if (data?.lab_id != null) {
+        const { data: labData, error: labError } = await supabase
+          .from("labs")
+          .select("name")
+          .eq("id", data.lab_id)
+          .maybeSingle();
+  
+        if (labError) {
+          console.error("Lab fetch error:", labError.message);
+        }
+  
+        if (labData?.name) {
+          resolvedLabName = labData.name;
+        }
+      }
+  
+      setBooking({
+        ...(data as BookingDetails),
+        lab_name: resolvedLabName,
+      });
     } catch (err) {
       console.error("Fetch booking details error:", err);
       setError("Something went wrong while loading booking details.");
       setBooking(null);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
   };
@@ -161,13 +193,20 @@ export default function BookingDetailsPage() {
   };
 
   const actionButtonClass =
-    "inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 hover:scale-105 hover:bg-gradient-to-r hover:from-[#CB1A29] hover:via-[#CB1AC2] hover:to-[#4C1ACB] hover:shadow-[0_0_30px_rgba(203,26,194,0.7),0_0_60px_rgba(76,26,203,0.5)] active:scale-95";
+    "inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 hover:bg-gradient-to-r hover:from-[#CB1A29] hover:via-[#CB1AC2] hover:to-[#4C1ACB] hover:shadow-[0_0_30px_rgba(203,26,194,0.7),0_0_60px_rgba(76,26,203,0.5)] active:scale-95";
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-white">
       <AuroraBackground />
 
       <div className="relative z-10 mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+        <AnimatedContent
+          delay={0.1}
+          duration={0.9}
+          distance={50}
+          direction="vertical"
+          scale={0.98}
+        >
         <div className="mb-8 flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/[0.05] p-6 shadow-[0_10px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm text-cyan-300">
@@ -193,35 +232,76 @@ export default function BookingDetailsPage() {
             <button
               onClick={fetchBookingDetails}
               title="Refresh Details"
-              className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/10 p-3 transition-all duration-300 hover:scale-110 hover:bg-gradient-to-r hover:from-[#CB1A29] hover:via-[#CB1AC2] hover:to-[#4C1ACB] hover:shadow-[0_0_30px_rgba(203,26,194,0.7),0_0_60px_rgba(76,26,203,0.5)]"
+              disabled={loading}
+              className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/10 p-3 transition-all duration-300 hover:bg-gradient-to-r hover:from-[#CB1A29] hover:via-[#CB1AC2] hover:to-[#4C1ACB] hover:shadow-[0_0_30px_rgba(203,26,194,0.7),0_0_60px_rgba(76,26,203,0.5)] active:scale-95"
             >
-              <RefreshCw className="h-5 w-5 text-white" />
+              <RefreshCw className={`h-5 w-5 text-white ${loading ? "animate-spin" : ""}`} />
             </button>
           </div>
         </div>
+        </AnimatedContent>
 
         {error && (
+          <AnimatedContent
+            delay={0.2}
+            duration={0.9}
+            distance={50}
+            direction="vertical"
+            scale={0.98}
+          >
           <div className="mb-6 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
             {error}
           </div>
+          </AnimatedContent>
         )}
 
         {success && (
+          <AnimatedContent
+            delay={0.2}
+            duration={0.9}
+            distance={50}
+            direction="vertical"
+            scale={0.98}
+          >
           <div className="mb-6 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
             {success}
           </div>
+          </AnimatedContent>
         )}
 
         {loading ? (
+          <AnimatedContent
+            delay={0.2}
+            duration={0.9}
+            distance={50}
+            direction="vertical"
+            scale={0.98}
+          >
           <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 text-sm text-white/60 shadow-[0_10px_40px_rgba(0,0,0,0.22)] backdrop-blur-xl">
             Loading booking details...
           </div>
+          </AnimatedContent>
         ) : !booking ? (
+          <AnimatedContent
+            delay={0.3}
+            duration={0.9}
+            distance={50}
+            direction="vertical"
+            scale={0.98}
+          >
           <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 text-sm text-white/60 shadow-[0_10px_40px_rgba(0,0,0,0.22)] backdrop-blur-xl">
             No booking details available.
           </div>
+          </AnimatedContent>
         ) : (
           <div className="space-y-6">
+            <AnimatedContent
+              delay={0.2}
+              duration={0.9}
+              distance={50}
+              direction="vertical"
+              scale={0.98}
+            >
             <section className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 shadow-[0_10px_50px_rgba(0,0,0,0.25)] backdrop-blur-xl">
               <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-center gap-3">
@@ -246,10 +326,10 @@ export default function BookingDetailsPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <DetailsCard
-                  icon={<ClipboardList className="h-5 w-5 text-cyan-300" />}
-                  label="Booking ID"
-                  value={booking.id}
+              <DetailsCard
+                  icon={<Building2 className="h-5 w-5 text-purple-300" />}
+                  label="Laboratory Name"
+                  value={booking.lab_name || "N/A"}
                 />
 
                 <DetailsCard
@@ -261,9 +341,7 @@ export default function BookingDetailsPage() {
                 <DetailsCard
                   icon={<Clock3 className="h-5 w-5 text-amber-300" />}
                   label="Time"
-                  value={`${formatTime(booking.start_time)} - ${formatTime(
-                    booking.end_time
-                  )}`}
+                  value={`${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`}
                 />
 
                 <DetailsCard
@@ -274,8 +352,8 @@ export default function BookingDetailsPage() {
 
                 <DetailsCard
                   icon={<Monitor className="h-5 w-5 text-blue-300" />}
-                  label="Computer ID"
-                  value={booking.computer_id || "N/A"}
+                  label="Booking ID"
+                  value={booking.id || "N/A"}
                 />
 
                 <DetailsCard
@@ -285,7 +363,15 @@ export default function BookingDetailsPage() {
                 />
               </div>
             </section>
+            </AnimatedContent>
 
+            <AnimatedContent
+              delay={0.3}
+              duration={0.9}
+              distance={50}
+              direction="vertical"
+              scale={0.98}
+            >
             <section className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 shadow-[0_10px_50px_rgba(0,0,0,0.25)] backdrop-blur-xl">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-xl bg-pink-500/10 p-3">
@@ -319,7 +405,15 @@ export default function BookingDetailsPage() {
                 />
               </div>
             </section>
+            </AnimatedContent>
 
+            <AnimatedContent
+              delay={0.4}
+              duration={0.9}
+              distance={50}
+              direction="vertical"
+              scale={0.98}
+            >
             <section className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 shadow-[0_10px_50px_rgba(0,0,0,0.25)] backdrop-blur-xl">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-xl bg-red-500/10 p-3">
@@ -360,6 +454,7 @@ export default function BookingDetailsPage() {
                 </div>
               )}
             </section>
+            </AnimatedContent>
           </div>
         )}
       </div>
@@ -422,8 +517,26 @@ function formatDate(value?: string | null) {
 }
 
 function formatTime(value?: string | null) {
-  if (!value) return "";
-  return value.slice(0, 5);
+  if (!value) return "N/A";
+
+  const trimmed = value.trim();
+
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})/);
+  if (match) {
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+
+    const temp = new Date();
+    temp.setHours(hours, minutes, 0, 0);
+
+    return temp.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+
+  return value;
 }
 
 function formatDateTime(value?: string | null) {

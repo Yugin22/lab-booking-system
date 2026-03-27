@@ -41,11 +41,11 @@ type BookingRow = {
   start_time: string | null;
   end_time: string | null;
   computer_id: string | null;
-  lab_id?: number | null;
+  lab_id: number | null;
   created_at?: string | null;
   labs?: {
-    name: string;
-  }[] | null;
+    name: string | null;
+  } | null;
 };
 
 type LabRow = {
@@ -119,8 +119,8 @@ export default function AdminDashboardPage() {
           .from("profiles")
           .select("id, name, email, role, is_admin")
           .order("email", { ascending: true }),
-
-          supabase
+      
+        supabase
           .from("bookings")
           .select(`
             id,
@@ -129,13 +129,14 @@ export default function AdminDashboardPage() {
             start_time,
             end_time,
             computer_id,
+            lab_id,
             created_at,
-            labs (
+            labs:lab_id (
               name
             )
           `)
           .order("date", { ascending: false }),
-
+      
         supabase
           .from("labs")
           .select("id, name, status, available_slots, created_at")
@@ -161,7 +162,7 @@ export default function AdminDashboardPage() {
 
       setProfiles(loadedProfiles);
       setUsersCount(loadedProfiles.length);
-      setBookings((bookingsRes.data || []) as BookingRow[]);
+      setBookings((bookingsRes.data ?? []) as unknown as BookingRow[]);
       setLabs((labsRes.data || []) as LabRow[]);
     } catch {
       setError("Something went wrong while loading the admin dashboard.");
@@ -636,7 +637,7 @@ export default function AdminDashboardPage() {
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                       <div>
                         <h3 className="text-base font-semibold text-white">
-                          Laboratory: {booking.labs?.[0]?.name || "Unknown Laboratory"}
+                          Laboratory: {booking.labs?.name || "Unknown Laboratory"}
                         </h3>
                         <p className="mt-2 text-sm text-white/70">
                           {formatDate(booking.date)}{" "}

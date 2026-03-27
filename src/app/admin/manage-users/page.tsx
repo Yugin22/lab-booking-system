@@ -63,6 +63,21 @@ export default function ManageUsersPage() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  useEffect(() => {
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+  
+      if (!data.session) {
+        router.replace("/login");
+        return;
+      }
+  
+      await fetchPageData();
+    };
+  
+    init();
+  }, []);
+
   const fetchPageData = async () => {
     try {
       setRefreshing(true);
@@ -81,7 +96,7 @@ export default function ManageUsersPage() {
       }
 
       if (!user) {
-        setAccessDenied("You must be logged in to access manage users.");
+        router.replace("/login");
         return;
       }
 
@@ -123,10 +138,6 @@ export default function ManageUsersPage() {
       setCheckingAccess(false);
     }
   };
-
-  useEffect(() => {
-    fetchPageData();
-  }, []);
 
   const handleRefresh = async () => {
     if (refreshing) return;
@@ -542,129 +553,132 @@ export default function ManageUsersPage() {
                 const isSaving = savingUserId === user.id;
 
                 return (
-                  <div
-                    key={user.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
-                  >
-                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <h3 className="text-base font-semibold text-white">
-                            {user.name || "No name"}
-                          </h3>
+                <div
+                  key={user.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+                >
+                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className="text-xl font-semibold text-white">
+                          {user.name || "No name"}
+                        </h3>
 
-                          <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getRoleBadge(
-                              user.role,
-                              user.is_admin
-                            )}`}
-                          >
-                            {user.role || (user.is_admin ? "admin" : "user")}
-                          </span>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getRoleBadge(
+                            user.role,
+                            user.is_admin
+                          )}`}
+                        >
+                          {user.role || (user.is_admin ? "admin" : "user")}
+                        </span>
 
-                          <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusBadge(
-                              activeValue
-                            )}`}
-                          >
-                            {activeValue ? "Active" : "Inactive"}
-                          </span>
-                        </div>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusBadge(
+                            activeValue
+                          )}`}
+                        >
+                          {activeValue ? "Active" : "Inactive"}
+                        </span>
+                      </div>
 
-                        <div className="grid grid-cols-1 gap-2 text-sm text-white/65 sm:grid-cols-2">
-                          <p>
-                            <span className="font-medium text-white/80">
-                              Email:
-                            </span>{" "}
+                      <div className="grid grid-cols-1 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <p className="text-white/45">Email</p>
+                          <p className="break-words font-medium text-white/85">
                             {user.email || "No email"}
                           </p>
-                          <p>
-                            <span className="font-medium text-white/80">
-                              Department:
-                            </span>{" "}
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-white/45">Department</p>
+                          <p className="font-medium text-white/85">
                             {user.department || "—"}
                           </p>
-                          <p>
-                            <span className="font-medium text-white/80">
-                              Course:
-                            </span>{" "}
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-white/45">Course</p>
+                          <p className="font-medium text-white/85">
                             {user.course || "—"}
                           </p>
-                          <p>
-                            <span className="font-medium text-white/80">
-                              Admin Access:
-                            </span>{" "}
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-white/45">Admin Access</p>
+                          <p className="font-medium text-white/85">
                             {user.is_admin ? "Yes" : "No"}
                           </p>
                         </div>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:min-w-[360px]">
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium uppercase tracking-wide text-white/55">
-                            Assign Role
-                          </label>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium uppercase tracking-wide text-white/50">
+                          Assign Role
+                        </label>
 
-                          <div className="flex gap-2">
-                            <select
-                              defaultValue={user.role || "student"}
-                              disabled={isSaving}
-                              onChange={(e) => handleRoleChange(user, e.target.value)}
-                              className="w-full appearance-none rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-white outline-none transition-all duration-300 focus:border-cyan-400/70 focus:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              <option value="student" className="bg-slate-900">
-                                Student
-                              </option>
-                              <option value="faculty" className="bg-slate-900">
-                                Faculty
-                              </option>
-                              <option value="admin" className="bg-slate-900">
-                                Admin
-                              </option>
-                            </select>
+                        <div className="flex gap-2">
+                          <select
+                            defaultValue={user.role || "student"}
+                            disabled={isSaving}
+                            onChange={(e) => handleRoleChange(user, e.target.value)}
+                            className="w-full appearance-none rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-white outline-none transition-all duration-300 focus:border-cyan-400/70 focus:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <option value="student" className="bg-slate-900">
+                              Student
+                            </option>
+                            <option value="faculty" className="bg-slate-900">
+                              Faculty
+                            </option>
+                            <option value="admin" className="bg-slate-900">
+                              Admin
+                            </option>
+                          </select>
 
-                            <div className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 text-white/60">
-                              <Save className="h-4 w-4" />
-                            </div>
+                          <div className="inline-flex h-[50px] w-[50px] items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60">
+                            <Save className="h-4 w-4" />
                           </div>
                         </div>
+                      </div>
 
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium uppercase tracking-wide text-white/55">
-                            Account Status
-                          </label>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium uppercase tracking-wide text-white/50">
+                          Account Status
+                        </label>
 
-                          <button
-                            onClick={() => handleToggleActive(user)}
-                            disabled={isSaving}
-                            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 ${
-                              activeValue
-                                ? "border-red-400/20 bg-red-500/10 text-red-100 hover:bg-red-500/20"
-                                : "border-emerald-400/20 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20"
-                            }`}
-                          >
-                            {activeValue ? (
-                              <>
-                                <UserX className="h-4 w-4" />
-                                {isSaving ? "Updating..." : "Deactivate Account"}
-                              </>
-                            ) : (
-                              <>
-                                <UserCheck className="h-4 w-4" />
-                                {isSaving ? "Updating..." : "Activate Account"}
-                              </>
-                            )}
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => handleToggleActive(user)}
+                          disabled={isSaving}
+                          className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 ${
+                            activeValue
+                              ? "border-red-400/20 bg-red-500/10 text-red-100 hover:bg-red-500/20"
+                              : "border-emerald-400/20 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20"
+                          }`}
+                        >
+                          {activeValue ? (
+                            <>
+                              <UserX className="h-4 w-4" />
+                              {isSaving ? "Updating..." : "Deactivate Account"}
+                            </>
+                          ) : (
+                            <>
+                              <UserCheck className="h-4 w-4" />
+                              {isSaving ? "Updating..." : "Activate Account"}
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
                   </div>
+                </div>
                 );
               })}
             </div>
           )}
         </section>
-        /</AnimatedContent>
+        </AnimatedContent>
 
         <AnimatedContent
           delay={0.7}

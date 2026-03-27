@@ -392,6 +392,17 @@ export default function ManageLaboratoriesPage() {
     return "bg-white/10 text-white/80 border border-white/10";
   };
 
+  const formatTime = (time?: string | null) => {
+    if (!time) return "—";
+  
+    const [hour, minute] = time.split(":").map(Number);
+  
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
+  
+    return `${formattedHour}:${minute.toString().padStart(2, "0")} ${suffix}`;
+  };
+
   if (checkingAccess && loading) {
     return (
       <div className="relative min-h-screen overflow-hidden bg-black text-white">
@@ -782,7 +793,7 @@ export default function ManageLaboratoriesPage() {
                   key={lab.id}
                   className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
                 >
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-3">
                         <h3 className="text-base font-semibold text-white">
@@ -799,27 +810,22 @@ export default function ManageLaboratoriesPage() {
 
                       <div className="grid grid-cols-1 gap-2 text-sm text-white/65 sm:grid-cols-2">
                         <p>
-                          <span className="font-medium text-white/80">
-                            Capacity:
-                          </span>{" "}
+                          <span className="font-medium text-white/80">Capacity:</span>{" "}
                           {lab.capacity ?? lab.available_slots ?? 0}
                         </p>
+
                         <p>
-                          <span className="font-medium text-white/80">
-                            Location:
-                          </span>{" "}
+                          <span className="font-medium text-white/80">Availability:</span>{" "}
+                          {formatTime(lab.available_from)} - {formatTime(lab.available_to)}
+                        </p>
+
+                        <p>
+                          <span className="font-medium text-white/80">Location:</span>{" "}
                           {lab.location || "—"}
                         </p>
+
                         <p>
-                          <span className="font-medium text-white/80">
-                            Availability:
-                          </span>{" "}
-                          {lab.available_from || "—"} - {lab.available_to || "—"}
-                        </p>
-                        <p>
-                          <span className="font-medium text-white/80">
-                            Available Slots:
-                          </span>{" "}
+                          <span className="font-medium text-white/80">Available Slots:</span>{" "}
                           {lab.available_slots ?? 0}
                         </p>
                       </div>

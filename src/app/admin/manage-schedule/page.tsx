@@ -249,16 +249,14 @@ export default function ManageSchedulePage() {
       return false;
     }
 
-    if (form.rule_type === "time_slot") {
-      if (!form.time_start || !form.time_end) {
-        setError("Start and end time are required for time slots.");
-        return false;
-      }
+    if ((form.time_start && !form.time_end) || (!form.time_start && form.time_end)) {
+      setError("Please provide both start time and end time, or leave both blank for all-day.");
+      return false;
+    }
 
-      if (form.time_start >= form.time_end) {
-        setError("End time must be later than start time.");
-        return false;
-      }
+    if (form.time_start && form.time_end && form.time_start >= form.time_end) {
+      setError("End time must be later than start time.");
+      return false;
     }
 
     return true;
@@ -279,8 +277,8 @@ export default function ManageSchedulePage() {
       rule_type: form.rule_type,
       date_from: form.date_from || null,
       date_to: form.date_to || null,
-      time_start: form.rule_type === "time_slot" ? form.time_start || null : null,
-      time_end: form.rule_type === "time_slot" ? form.time_end || null : null,
+      time_start: form.time_start || null,
+      time_end: form.time_end || null,
       applies_to: form.applies_to.trim() || "all",
       notes: form.notes.trim() || null,
       is_active: form.is_active,
@@ -429,6 +427,20 @@ export default function ManageSchedulePage() {
       month: "long",
       day: "numeric",
     });
+  };
+
+  const formatTime = (value?: string | null) => {
+    if (!value) return "—";
+  
+    const [hourStr, minute] = value.split(":");
+    const hour = Number(hourStr);
+  
+    if (Number.isNaN(hour)) return value;
+  
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  
+    return `${hour12}:${minute} ${suffix}`;
   };
 
   if (checkingAccess && loading) {
@@ -729,7 +741,6 @@ export default function ManageSchedulePage() {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, time_start: e.target.value }))
                   }
-                  disabled={form.rule_type !== "time_slot"}
                   className="w-full rounded-xl border border-white/10 bg-white/[0.05] py-3 pl-11 pr-4 text-sm text-white outline-none transition-all duration-300 focus:border-cyan-400/70 focus:bg-white/[0.08] disabled:opacity-50"
                 />
               </Field>
@@ -741,7 +752,6 @@ export default function ManageSchedulePage() {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, time_end: e.target.value }))
                   }
-                  disabled={form.rule_type !== "time_slot"}
                   className="w-full rounded-xl border border-white/10 bg-white/[0.05] py-3 pl-11 pr-4 text-sm text-white outline-none transition-all duration-300 focus:border-cyan-400/70 focus:bg-white/[0.08] disabled:opacity-50"
                 />
               </Field>
@@ -881,7 +891,7 @@ export default function ManageSchedulePage() {
                   key={rule.id}
                   className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
                 >
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-3">
                         <h3 className="text-base font-semibold text-white">
@@ -905,45 +915,42 @@ export default function ManageSchedulePage() {
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-2 text-sm text-white/65 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-x-10 gap-y-3 text-sm text-white/65 sm:grid-cols-2">
                         <p>
-                          <span className="font-medium text-white/80">
-                            Start Date:
-                          </span>{" "}
+                          <span className="font-medium text-white/80">Time:</span>{" "}
+                          {rule.time_start && rule.time_end
+                            ? `${formatTime(rule.time_start)} - ${formatTime(rule.time_end)}`
+                            : "All day"}
+                        </p>
+
+                        <p>
+                          <span className="font-medium text-white/80">Start Date:</span>{" "}
                           {formatDate(rule.date_from)}
                         </p>
+
                         <p>
-                          <span className="font-medium text-white/80">
-                            End Date:
-                          </span>{" "}
-                          {formatDate(rule.date_to)}
-                        </p>
-                        <p>
-                          <span className="font-medium text-white/80">
-                            Time:
-                          </span>{" "}
-                          {rule.time_start || "—"} - {rule.time_end || "—"}
-                        </p>
-                        <p>
-                          <span className="font-medium text-white/80">
-                            Applies To:
-                          </span>{" "}
+                          <span className="font-medium text-white/80">Applies To:</span>{" "}
                           {rule.applies_to || "all"}
                         </p>
-                      </div>
 
-                      {rule.notes && (
-                        <p className="text-sm text-white/55">
-                          <span className="font-medium text-white/75">Notes:</span>{" "}
-                          {rule.notes}
+                        <p>
+                          <span className="font-medium text-white/80">End Date:</span>{" "}
+                          {formatDate(rule.date_to)}
                         </p>
-                      )}
+
+                        <div className="sm:col-span-2">
+                          <p className="text-sm text-white/55">
+                            <span className="font-medium text-white/75">Notes:</span>{" "}
+                            {rule.notes?.trim() ? rule.notes : "—"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:min-w-[260px]">
+                    <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto xl:items-center xl:justify-end">
                       <button
                         onClick={() => openEditForm(rule)}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100 transition-all duration-300 hover:bg-amber-500/20 active:scale-95"
+                        className="inline-flex min-w-[140px] items-center justify-center gap-2 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100 transition-all duration-300 hover:bg-amber-500/20 active:scale-95"
                       >
                         <Pencil className="h-4 w-4" />
                         Edit
@@ -952,7 +959,7 @@ export default function ManageSchedulePage() {
                       <button
                         onClick={() => handleDeleteRule(rule.id)}
                         disabled={deletingRuleId === rule.id}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition-all duration-300 hover:bg-red-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex min-w-[140px] items-center justify-center gap-2 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition-all duration-300 hover:bg-red-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <Trash2 className="h-4 w-4" />
                         {deletingRuleId === rule.id ? "Deleting..." : "Delete"}

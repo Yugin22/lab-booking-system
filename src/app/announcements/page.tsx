@@ -29,8 +29,15 @@ type BookingNotification = {
   end_time: string;
   status: string;
   computer_id: string | null;
+  lab_id?: number | null;
+  lab_name?: string | null;
   updated_at?: string | null;
   created_at?: string | null;
+};
+
+type LabRow = {
+  id: number;
+  name: string;
 };
 
 type AnnouncementRow = {
@@ -78,31 +85,60 @@ export default function AnnouncementsPage() {
 
   const fetchBookingUpdates = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select(
-          "id, date, start_time, end_time, status, computer_id, updated_at, created_at"
-        )
-        .eq("user_id", userId)
-        .order("date", { ascending: false });
-
-      if (error) {
-        const readableError = getReadableError(error);
-
-        // Use console.log instead of console.error to avoid the Turbopack overlay {}
+      const [bookingsRes, labsRes] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select(`
+            id,
+            date,
+            start_time,
+            end_time,
+            status,
+            computer_id,
+            lab_id,
+            updated_at,
+            created_at
+          `)
+          .eq("user_id", userId)
+          .order("date", { ascending: false }),
+  
+        supabase
+          .from("labs")
+          .select("id, name")
+          .order("name", { ascending: true }),
+      ]);
+  
+      if (bookingsRes.error) {
+        const readableError = getReadableError(bookingsRes.error);
         console.log("Booking notifications fetch error:", readableError);
-
         setBookingError(readableError);
         setBookingUpdates([]);
         return;
       }
-
-      setBookingUpdates((data || []) as BookingNotification[]);
+  
+      if (labsRes.error) {
+        const readableError = getReadableError(labsRes.error);
+        console.log("Labs fetch error:", readableError);
+        setBookingError(readableError);
+        setBookingUpdates([]);
+        return;
+      }
+  
+      const labsMap: Record<number, string> = {};
+      ((labsRes.data || []) as LabRow[]).forEach((lab) => {
+        labsMap[lab.id] = lab.name;
+      });
+  
+      const mappedBookings = ((bookingsRes.data || []) as any[]).map((item) => ({
+        ...item,
+        lab_name:
+          item.lab_id != null ? labsMap[Number(item.lab_id)] || null : null,
+      }));
+  
+      setBookingUpdates(mappedBookings as BookingNotification[]);
     } catch (error) {
       const readableError = getReadableError(error);
-
       console.log("Booking notifications unexpected error:", readableError);
-
       setBookingError(readableError);
       setBookingUpdates([]);
     }
@@ -211,8 +247,24 @@ export default function AnnouncementsPage() {
   };
 
   const formatTime = (value?: string | null) => {
-    if (!value) return "";
-    return value.slice(0, 5);
+    if (!value) return "N/A";
+  
+    const trimmed = value.trim();
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})/);
+  
+    if (!match) return value;
+  
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+  
+    const temp = new Date();
+    temp.setHours(hours, minutes, 0, 0);
+  
+    return temp.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
   const formatDateTime = (value?: string | null) => {
@@ -417,7 +469,7 @@ export default function AnnouncementsPage() {
                             </h3>
 
                             <p className="mt-1 text-sm text-white/70">
-                              Computer ID: {booking.computer_id || "N/A"}
+                              Laboratory Name: {booking.lab_name || "N/A"}
                             </p>
 
                             <p className="mt-1 text-sm text-white/65">
