@@ -18,6 +18,18 @@ import {
   FolderCheck,
   BarChart3,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  CartesianGrid,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import { supabase } from "@/lib/supabase";
 import AnimatedContent from "@/components/AnimatedContent";
 
@@ -252,6 +264,88 @@ export default function AdminDashboardPage() {
     };
   }, [labs]);
 
+  const bookingStatusChartData = useMemo(() => {
+    return [
+      { name: "Pending", value: bookingStats.pending },
+      { name: "Approved", value: bookingStats.approved },
+      { name: "Rejected/Cancelled", value: bookingStats.rejected },
+    ];
+  }, [bookingStats]);
+
+  const labStatusChartData = useMemo(() => {
+    return [
+      { name: "Available", value: labStats.available },
+      { name: "Occupied", value: labStats.occupied },
+      { name: "Maintenance/Unavailable", value: labStats.unavailable },
+    ];
+  }, [labStats]);
+
+  const mostUsedLaboratoriesData = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    bookings.forEach((booking) => {
+      const labName = booking.labs?.name || "Unknown Lab";
+      counts[labName] = (counts[labName] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+  }, [bookings]);
+
+  const bookingsPerDayData = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    bookings.forEach((booking) => {
+      if (!booking.date) return;
+      counts[booking.date] = (counts[booking.date] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-10)
+      .map(([date, value]) => ({
+        date: formatShortDate(date),
+        value,
+      }));
+  }, [bookings]);
+
+  const formatTime = (value?: string | null) => {
+    if (!value) return "";
+  
+    const date = new Date(`1970-01-01T${value}`);
+    if (isNaN(date.getTime())) return value;
+  
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const peakBookingHoursData = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    bookings.forEach((booking) => {
+      const start = booking.start_time?.slice(0, 5);
+      const end = booking.end_time?.slice(0, 5);
+
+      if (!start) return;
+
+      const label = end
+        ? `${formatTime(start)} - ${formatTime(end)}`
+        : formatTime(start);
+
+      counts[label] = (counts[label] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+  }, [bookings]);
+
   const recentBookings = useMemo(() => {
     return [...bookings]
       .sort((a, b) => {
@@ -261,6 +355,7 @@ export default function AdminDashboardPage() {
       })
       .slice(0, 6);
   }, [bookings]);
+
 
   const getBookingBadge = (status?: string | null) => {
     const value = status?.toLowerCase();
@@ -311,18 +406,17 @@ export default function AdminDashboardPage() {
     });
   };
 
-  const formatTime = (value?: string | null) => {
-    if (!value) return "";
+  function formatShortDate(value?: string | null) {
+    if (!value) return "—";
   
-    const date = new Date(`1970-01-01T${value}`);
-    if (isNaN(date.getTime())) return value;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
   
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
     });
-  };
+  }
 
   if (checkingAccess && loading) {
     return (
@@ -412,7 +506,7 @@ export default function AdminDashboardPage() {
                 onClick={handleRefresh}
                 disabled={refreshing}
                 title="Refresh Admin Dashboard"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 hover:bg-gradient-to-r hover:from-[#CB1A29] hover:via-[#CB1AC2] hover:to-[#4C1ACB] hover:shadow-[0_0_30px_rgba(203,26,194,0.7),0_0_60px_rgba(76,26,203,0.5)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 mr-5 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 hover:bg-gradient-to-r hover:from-[#CB1A29] hover:via-[#CB1AC2] hover:to-[#4C1ACB] hover:shadow-[0_0_30px_rgba(203,26,194,0.7),0_0_60px_rgba(76,26,203,0.5)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <RefreshCw
                   className={`h-5 w-5 text-white ${
@@ -426,6 +520,141 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         </div>
+        </AnimatedContent>
+
+        <AnimatedContent
+          delay={0.3}
+          duration={0.9}
+          distance={50}
+          direction="vertical"
+          scale={0.98}
+          >
+            <section className="mb-5 rounded-[24px] border border-white/10 bg-white/[0.05] p-4 shadow-[0_10px_35px_rgba(0,0,0,0.2)] backdrop-blur-xl">
+              <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-[10px] font-medium text-sky-300">
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    Live Analytics
+                  </div>
+                  <h2 className="mt-2 text-base font-bold text-white sm:text-lg">
+                    Analytics Overview
+                  </h2>
+                  <p className="mt-1 text-[11px] text-white/48">
+                    Compact analytics from your Bookings and Labs Data.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  <AnalyticsMiniPill label="Bookings" value={bookingStats.total} />
+                  <AnalyticsMiniPill label="Approved" value={bookingStats.approved} />
+                  <AnalyticsMiniPill label="Pending" value={bookingStats.pending} />
+                  <AnalyticsMiniPill label="Labs" value={labStats.totalLabs} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <CompactChartCard
+              title="Bookings by Status"
+              subtitle="Current bookings status"
+              height="h-[150px]"
+            >
+              <div className="grid h-full grid-cols-[120px_1fr] items-center gap-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={bookingStatusChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={28}
+                      outerRadius={46}
+                      paddingAngle={3}
+                    >
+                      <Cell fill="#F59E0B" />
+                      <Cell fill="#10B981" />
+                      <Cell fill="#EF4444" />
+                    </Pie>
+                    <text
+                      x="50%"
+                      y="50%"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="#fff"
+                      fontSize={12}
+                      fontWeight={700}
+                    >
+                      {bookingStats.total}
+                    </text>
+                    <Tooltip content={<CompactTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                <div className="space-y-2 text-[11px]">
+                  <ChartLegendRow color="bg-amber-400" label="Pending" value={bookingStats.pending} />
+                  <ChartLegendRow color="bg-emerald-400" label="Approved" value={bookingStats.approved} />
+                  <ChartLegendRow color="bg-red-400" label="Rejected" value={bookingStats.rejected} />
+                </div>
+              </div>
+            </CompactChartCard>
+
+            <CompactChartCard
+              title="Lab Status Snapshot"
+              subtitle="Quick availability overview"
+              height="h-[150px]"
+            >
+              <div className="grid h-full grid-cols-3 gap-2">
+                <StatusMiniCard label="Available" value={labStats.available} tone="emerald" />
+                <StatusMiniCard label="Occupied" value={labStats.occupied} tone="amber" />
+                <StatusMiniCard label="Unavailable" value={labStats.unavailable} tone="red" />
+              </div>
+            </CompactChartCard>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <CompactChartCard
+              title="Most Used Laboratories"
+              subtitle="Top 4 labs"
+              height="h-[150px]"
+            >
+              <div className="space-y-2.5">
+                {mostUsedLaboratoriesData.slice(0, 4).map((item) => {
+                  const max = Math.max(...mostUsedLaboratoriesData.slice(0, 4).map((x) => x.value), 1);
+
+                  return (
+                    <MiniProgressRow
+                      key={item.name}
+                      label={item.name}
+                      value={item.value}
+                      widthPercent={(item.value / max) * 100}
+                      barClassName="bg-gradient-to-r from-cyan-400 to-sky-500"
+                    />
+                  );
+                })}
+              </div>
+            </CompactChartCard>
+
+            <CompactChartCard
+              title="Peak Booking Hours"
+              subtitle="Top 4 active hours"
+              height="h-[150px]"
+            >
+              <div className="space-y-2.5">
+                {peakBookingHoursData.slice(0, 4).map((item) => {
+                  const max = Math.max(...peakBookingHoursData.slice(0, 4).map((x) => x.value), 1);
+
+                  return (
+                    <MiniProgressRow
+                      key={item.name}
+                      label={item.name}
+                      value={item.value}
+                      widthPercent={(item.value / max) * 100}
+                      barClassName="bg-gradient-to-r from-rose-400 to-orange-400"
+                    />
+                  );
+                })}
+              </div>
+            </CompactChartCard>
+          </div>
+        </section>
         </AnimatedContent>
 
         {error && (
@@ -830,7 +1059,7 @@ export default function AdminDashboardPage() {
         )}
 
         <AnimatedContent
-          delay={0.10}
+          delay={0.9}
           duration={0.9}
           distance={50}
           direction="vertical"
@@ -854,6 +1083,41 @@ export default function AdminDashboardPage() {
   );
 }
 
+function CompactChartCard({
+  title,
+  subtitle,
+  height = "h-[220px]",
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  height?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <div className="mb-3">
+        <h3 className="text-sm font-semibold text-white">{title}</h3>
+        <p className="mt-0.5 text-[11px] text-white/42">{subtitle}</p>
+      </div>
+      <div className={`${height} w-full transition-all duration-500`}>{children}</div>
+    </div>
+  );
+}
+
+function CompactTooltip({ active, payload, label }: any) {
+  if (!active || !payload || !payload.length) return null;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#08111f]/95 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+      {label ? <p className="mb-0.5 text-[11px] text-white/55">{label}</p> : null}
+      <p className="text-xs font-semibold text-white">
+        {payload[0]?.name || "Value"}: {payload[0]?.value}
+      </p>
+    </div>
+  );
+}
+
 function StatCard({
   title,
   value,
@@ -873,6 +1137,91 @@ function StatCard({
       <h3 className="text-sm text-white/60">{title}</h3>
       <p className="mt-2 text-3xl font-bold text-white">{value}</p>
       <p className="mt-2 text-sm text-white/45">{subtitle}</p>
+    </div>
+  );
+}
+
+function AnalyticsMiniPill({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center">
+      <p className="text-[10px] uppercase tracking-[0.16em] text-white/38">{label}</p>
+      <p className="mt-1 text-sm font-bold text-white">{value}</p>
+    </div>
+  );
+}
+
+function ChartLegendRow({
+  color,
+  label,
+  value,
+}: {
+  color: string;
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-white/8 bg-white/[0.03] px-2.5 py-1.5">
+      <div className="flex items-center gap-2">
+        <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
+        <span className="text-white/70">{label}</span>
+      </div>
+      <span className="font-semibold text-white">{value}</span>
+    </div>
+  );
+}
+
+function MiniProgressRow({
+  label,
+  value,
+  widthPercent,
+  barClassName,
+}: {
+  label: string;
+  value: number | string;
+  widthPercent: number;
+  barClassName: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <p className="truncate text-[11px] text-white/72">{label}</p>
+        <p className="text-[11px] font-semibold text-white">{value}</p>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+        <div
+          className={`h-full rounded-full ${barClassName}`}
+          style={{ width: `${Math.max(8, Math.min(widthPercent, 100))}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StatusMiniCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  tone: "emerald" | "amber" | "red";
+}) {
+  const toneMap = {
+    emerald: "bg-emerald-500/10 text-emerald-300 border-emerald-400/15",
+    amber: "bg-amber-500/10 text-amber-300 border-amber-400/15",
+    red: "bg-red-500/10 text-red-300 border-red-400/15",
+  };
+
+  return (
+    <div className={`rounded-xl border p-3 text-center ${toneMap[tone]}`}>
+      <p className="text-[10px] uppercase tracking-[0.14em] opacity-80">{label}</p>
+      <p className="mt-2 text-lg font-bold text-white">{value}</p>
     </div>
   );
 }

@@ -213,6 +213,13 @@ export default function AvailabilityPage() {
             >
               Book Laboratory
             </button>
+
+            <button
+              onClick={() => router.push("/booking-calendar")}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 hover:bg-gradient-to-r hover:from-[#CB1A29] hover:via-[#CB1AC2] hover:to-[#4C1ACB] hover:shadow-[0_0_30px_rgba(203,26,194,0.7),0_0_60px_rgba(76,26,203,0.5)] active:scale-95"
+            >
+              Go to Booking Calendar
+            </button>
           </div>
         </div>
         </AnimatedContent>
@@ -386,7 +393,7 @@ function ScheduleRow({
 }) {
   return (
     <>
-      <div className="sticky left-0 z-20 flex flex-col justify-center rounded-2xl border border-white/10 bg-black/60 px-4 py-4 backdrop-blur-xl shadow-inner">
+      <div className="flex min-w-[260px] flex-col justify-center rounded-2xl border border-white/10 bg-black/60 px-4 py-4 backdrop-blur-xl shadow-inner">
         <p className="font-semibold text-white">{lab.name}</p>
         <p className="mt-1 text-xs text-white/50">
           Capacity: {lab.available_slots}
