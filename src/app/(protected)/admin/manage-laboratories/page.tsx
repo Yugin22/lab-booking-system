@@ -323,6 +323,26 @@ export default function ManageLaboratoriesPage() {
     setSuccess("");
 
     try {
+      // 🔍 Check if lab has bookings
+      const { data: bookings, error: checkError } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("lab_id", labId)
+      .limit(1);
+
+      if (checkError) {
+      setError(checkError.message);
+      setDeletingLabId(null);
+      return;
+      }
+
+      if (bookings && bookings.length > 0) {
+      setError("Cannot delete this lab because it has existing bookings.");
+      setDeletingLabId(null);
+      return;
+      }
+
+      // ✅ Safe to delete
       const { error } = await supabase.from("labs").delete().eq("id", labId);
 
       if (error) {
