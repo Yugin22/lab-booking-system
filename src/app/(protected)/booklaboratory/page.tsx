@@ -181,6 +181,9 @@ export default function BookLaboratoryPage() {
       }
 
       setSuccess("Booking request submitted successfully.");
+      setTimeout(() => {
+        router.push("/bookings");
+      }, 1500);
 
       setSelectedLabId("");
       setDate("");

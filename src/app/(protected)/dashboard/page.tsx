@@ -70,8 +70,19 @@ export default function DashboardPage() {
       setBookingsError("");
       setLabsError("");
       setAnnouncementsError("");
-
+  
+      // ✅ GET CURRENT USER
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+  
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+  
       const [bookingsRes, labsRes, announcementsRes] = await Promise.all([
+        // 👤 PERSONALIZED BOOKINGS
         supabase
           .from("bookings")
           .select(`
@@ -83,19 +94,22 @@ export default function DashboardPage() {
             computer_id,
             lab_id
           `)
+          .eq("user_id", user.id) // 🔥 THIS LINE FIXES EVERYTHING
           .order("date", { ascending: true }),
-
+  
+        // 🌐 GLOBAL LABS (NO CHANGE)
         supabase
           .from("labs")
           .select("id, name, status, available_slots, created_at")
           .order("name", { ascending: true }),
-
+  
+        // 🌐 GLOBAL ANNOUNCEMENTS (NO CHANGE)
         supabase
           .from("announcements")
           .select("id, title, content, created_at")
           .order("created_at", { ascending: false }),
       ]);
-
+  
       if (bookingsRes.error) {
         console.error("Bookings fetch error:", bookingsRes.error.message);
         setBookingsError(bookingsRes.error.message);
@@ -103,7 +117,7 @@ export default function DashboardPage() {
       } else {
         setBookings((bookingsRes.data || []) as Booking[]);
       }
-
+  
       if (labsRes.error) {
         console.error("Labs fetch error:", labsRes.error.message);
         setLabsError(labsRes.error.message);
@@ -111,7 +125,7 @@ export default function DashboardPage() {
       } else {
         setLabs((labsRes.data || []) as Lab[]);
       }
-
+  
       if (announcementsRes.error) {
         console.error(
           "Announcements fetch error:",
